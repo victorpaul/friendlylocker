@@ -6,6 +6,7 @@ import android.hardware.SensorManager;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.view.View;
+import android.view.WindowManager;
 import android.widget.Toast;
 import com.sukinsan.friendlylocker.R;
 import com.sukinsan.friendlylocker.service.ProximityService;
@@ -23,20 +24,30 @@ public class MainActivity extends AppCompatActivity{
         Sensor proximitySensor= sensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY);
         if (proximitySensor == null) {
             Toast.makeText(this, "No Proximity Sensor Found. Sorry, this app will not work on your device! ", Toast.LENGTH_LONG).show();
+        }else{
+            startService(new Intent(MainActivity.this, ProximityService.class));
+
+            findViewById(R.id.btn_friendlylocker_start).setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    startService(new Intent(MainActivity.this, ProximityService.class));
+                }
+            });
+
+            findViewById(R.id.btn_friendlylocker_stop).setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    stopService(new Intent(MainActivity.this, ProximityService.class));
+
+                    WindowManager.LayoutParams params = getWindow().getAttributes();
+                    params.flags |= WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON;
+                    params.screenBrightness = 0;
+                    getWindow().setAttributes(params);
+
+                }
+            });
         }
 
-        findViewById(R.id.btn_friendlylocker_start).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                startService(new Intent(MainActivity.this, ProximityService.class));
-            }
-        });
 
-        findViewById(R.id.btn_friendlylocker_stop).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                stopService(new Intent(MainActivity.this, ProximityService.class));
-            }
-        });
     }
 }
