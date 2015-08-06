@@ -10,7 +10,9 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.Toast;
 import com.sukinsan.friendlylocker.R;
+import com.sukinsan.friendlylocker.entity.Cache;
 import com.sukinsan.friendlylocker.service.ProximityService;
+import com.sukinsan.friendlylocker.utils.CacheUtils;
 
 public class MainActivity extends AppCompatActivity{
     private static final String TAG = MainActivity.class.getSimpleName();
@@ -22,6 +24,24 @@ public class MainActivity extends AppCompatActivity{
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        CacheUtils.getCache(this, new CacheUtils.Callback() {
+            @Override
+            public boolean read(Cache cache) {
+                cache.setDelay(2);
+                cache.setPlaySongOnSensor(true);
+                cache.setVibrateOnSensor(false);
+                return true;
+            }
+        });
+
+        CacheUtils.getCache(this, new CacheUtils.Callback() {
+            @Override
+            public boolean read(Cache cache) {
+
+                return false;
+            }
+        });
 
         SensorManager sensorManager= (SensorManager)getSystemService(Context.SENSOR_SERVICE);
         Sensor proximitySensor= sensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY);
