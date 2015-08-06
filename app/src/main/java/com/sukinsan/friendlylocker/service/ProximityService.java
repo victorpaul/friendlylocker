@@ -1,4 +1,5 @@
 package com.sukinsan.friendlylocker.service;
+import android.annotation.TargetApi;
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
@@ -9,6 +10,11 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.media.AudioManager;
+import android.media.MediaPlayer;
+import android.media.SoundPool;
+import android.os.Build;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.PowerManager;
@@ -17,6 +23,8 @@ import android.util.Log;
 import android.widget.Toast;
 import com.sukinsan.friendlylocker.R;
 import com.sukinsan.friendlylocker.activity.MainActivity;
+
+import java.io.File;
 
 public class ProximityService extends Service implements SensorEventListener{
     private static final String TAG = ProximityService.class.getSimpleName();
@@ -32,9 +40,12 @@ public class ProximityService extends Service implements SensorEventListener{
             }
         };
 
-    SensorManager mSensorManager;
-    Sensor mProximity;
+    private SensorManager mSensorManager;
+    private Sensor mProximity;
 
+    private MediaPlayer beep;
+
+    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
     public ProximityService() {
 
     }
@@ -43,6 +54,9 @@ public class ProximityService extends Service implements SensorEventListener{
     public void onCreate() {
         super.onCreate();
         Toast.makeText(this, getString(R.string.app_name) + " started!", Toast.LENGTH_LONG).show();
+
+        beep = MediaPlayer.create(this,R.raw.beep1_wav);
+
         pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
         wakeUpScreen = pm.newWakeLock(PowerManager.SCREEN_DIM_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP, "My Tag");
         shutDownScreen = pm.newWakeLock(PowerManager.PROXIMITY_SCREEN_OFF_WAKE_LOCK, "My Tag");
@@ -69,7 +83,7 @@ public class ProximityService extends Service implements SensorEventListener{
     public int onStartCommand(Intent intent, int flags, int startId) {
         //wl.acquire();
 
-        mSensorManager.registerListener(this, mProximity, SensorManager.SENSOR_DELAY_NORMAL);
+        mSensorManager.registerListener(this, mProximity, SensorManager.SENSOR_DELAY_UI);
 
         NotificationManager mNotificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
         Intent bIntent = new Intent(this, MainActivity.class);
@@ -91,6 +105,7 @@ public class ProximityService extends Service implements SensorEventListener{
 
     @Override
     public void onSensorChanged(SensorEvent event) {
+        beep.start();
         if(event.values.length > 0){
             if(event.values[0] == 0.0){
                 Log.i(TAG, "shutdown " + event.values[0]);
