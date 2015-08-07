@@ -8,36 +8,41 @@ import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
+import android.widget.CheckBox;
 import android.widget.Toast;
 import com.sukinsan.friendlylocker.R;
 import com.sukinsan.friendlylocker.entity.Cache;
 import com.sukinsan.friendlylocker.service.ProximityService;
 import com.sukinsan.friendlylocker.utils.CacheUtils;
 
-public class MainActivity extends AppCompatActivity{
+public class MainActivity extends AppCompatActivity implements View.OnClickListener{
     private static final String TAG = MainActivity.class.getSimpleName();
 
     private Button startService;
     private Button endService;
+
+    private CheckBox checkBoxVibrate;
+    private CheckBox checkBoxSound;
+    private CheckBox checkBoxLockSound;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        CacheUtils.getCache(this, new CacheUtils.Callback() {
-            @Override
-            public boolean read(Cache cache) {
-                cache.setDelay(2);
-                cache.setPlaySongOnSensor(true);
-                cache.setVibrateOnSensor(false);
-                return true;
-            }
-        });
+        checkBoxVibrate = (CheckBox)findViewById(R.id.checkBox_vibrate);
+        checkBoxSound = (CheckBox)findViewById(R.id.checkBox_sound);
+        checkBoxLockSound = (CheckBox)findViewById(R.id.checkBox_locksound);
+        checkBoxVibrate.setOnClickListener(this);
+        checkBoxSound.setOnClickListener(this);
+        checkBoxLockSound.setOnClickListener(this);
 
         CacheUtils.getCache(this, new CacheUtils.Callback() {
             @Override
             public boolean read(Cache cache) {
+                checkBoxLockSound.setChecked(cache.isPlaySongOnLock());
+                checkBoxSound.setChecked(cache.isPlaySongOnSensor());
+                checkBoxVibrate.setChecked(cache.isVibrateOnSensor());
                 return false;
             }
         });
@@ -90,5 +95,30 @@ public class MainActivity extends AppCompatActivity{
             }
         }
         return false;
+    }
+
+    private void saveSettings(){
+        CacheUtils.getCache(this, new CacheUtils.Callback() {
+            @Override
+            public boolean read(Cache cache) {
+                cache.setPlaySongOnLock(checkBoxLockSound.isChecked());
+                cache.setPlaySongOnSensor(checkBoxSound.isChecked());
+                cache.setVibrateOnSensor(checkBoxVibrate.isChecked());
+                return true;
+            }
+        });
+        stopService(new Intent(MainActivity.this, ProximityService.class));
+        startService(new Intent(MainActivity.this, ProximityService.class));
+    }
+
+    @Override
+    public void onClick(View v) {
+        switch(v.getId()){
+            case R.id.checkBox_locksound:
+            case R.id.checkBox_sound:
+            case R.id.checkBox_vibrate:
+                saveSettings();
+                break;
+        }
     }
 }

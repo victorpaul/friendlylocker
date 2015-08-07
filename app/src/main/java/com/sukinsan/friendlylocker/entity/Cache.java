@@ -6,9 +6,18 @@ package com.sukinsan.friendlylocker.entity;
 public class Cache {
     private int delay;
     private boolean playSongOnSensor;
+    private boolean playSongOnLock;
     private boolean vibrateOnSensor;
 
     public Cache() {
+    }
+
+    public boolean isPlaySongOnLock() {
+        return playSongOnLock;
+    }
+
+    public void setPlaySongOnLock(boolean playSongOnLock) {
+        this.playSongOnLock = playSongOnLock;
     }
 
     public int getDelay() {
@@ -40,6 +49,7 @@ public class Cache {
         return "Cache{" +
                 "delay=" + delay +
                 ", playSongOnSensor=" + playSongOnSensor +
+                ", playSongOnLock=" + playSongOnLock +
                 ", vibrateOnSensor=" + vibrateOnSensor +
                 '}';
     }

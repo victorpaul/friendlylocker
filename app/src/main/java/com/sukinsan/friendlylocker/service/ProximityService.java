@@ -15,15 +15,21 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.PowerManager;
+import android.os.Vibrator;
 import android.support.v4.app.NotificationCompat;
 import android.util.Log;
 import android.widget.Toast;
 import com.sukinsan.friendlylocker.R;
 import com.sukinsan.friendlylocker.activity.MainActivity;
+import com.sukinsan.friendlylocker.entity.Cache;
+import com.sukinsan.friendlylocker.utils.CacheUtils;
 
 public class ProximityService extends Service implements SensorEventListener{
     private static final String TAG = ProximityService.class.getSimpleName();
 
+    private Cache cache;
+
+    private Vibrator v;
     private PowerManager pm;
     private PowerManager.WakeLock wakeUpScreen;
     private PowerManager.WakeLock shutDownScreen;
@@ -33,7 +39,9 @@ public class ProximityService extends Service implements SensorEventListener{
     private Runnable timeOutCallbackToSleep = new Runnable() {
             public void run() {
                 shutDownScreen.acquire();
-                lock.start();
+                if(cache.isPlaySongOnLock()) {
+                    lock.start();
+                }
                 Log.i(TAG, "shutdown");
                 timeOutReleaseProximity.postDelayed(timeOutCallbackReleaseProximity,10000);
             }
@@ -62,12 +70,26 @@ public class ProximityService extends Service implements SensorEventListener{
     @Override
     public void onCreate() {
         super.onCreate();
-        Toast.makeText(this, getString(R.string.app_name) + " started!", Toast.LENGTH_LONG).show();
 
-        beep = MediaPlayer.create(this,R.raw.meow1_wav);
-        beep.setVolume(0.1f, 0.1f);
-        lock = MediaPlayer.create(this,R.raw.lock2_wav);
-        lock.setVolume(0.1f,0.1f);
+        CacheUtils.getCache(getApplicationContext(), new CacheUtils.Callback() {
+            @Override
+            public boolean read(Cache cache) {
+                ProximityService.this.cache = cache;
+                return false;
+            }
+        });
+
+        if(cache.isPlaySongOnSensor()) {
+            beep = MediaPlayer.create(this, R.raw.beep1_wav);//R.raw.meow1_wav
+            beep.setVolume(0.1f, 0.1f);
+        }
+        if(cache.isPlaySongOnLock()) {
+            lock = MediaPlayer.create(this, R.raw.lock2_wav);
+            lock.setVolume(0.1f, 0.1f);
+        }
+        if(cache.isVibrateOnSensor()) {
+            v = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
+        }
 
         pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
         wakeUpScreen = pm.newWakeLock(PowerManager.SCREEN_DIM_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP, "WakeUp");
@@ -117,14 +139,17 @@ public class ProximityService extends Service implements SensorEventListener{
     @Override
     public void onSensorChanged(final SensorEvent event) {
         timeOutReleaseProximity.removeCallbacks(timeOutCallbackReleaseProximity);
+
+        if(cache.isPlaySongOnSensor()) {
+            beep.start();
+        }
+        if(cache.isVibrateOnSensor()) {
+            v.vibrate(50);
+        }
         if(event.values.length > 0){
             if(event.values[0] == 0.0){
-                if(timeDelay > 0){ // we do not want to play beep and lock at the same time
-                    beep.start();
-                }
                 timeOutToSleep.postDelayed(timeOutCallbackToSleep, timeDelay);
             }else{
-                beep.start();
                 Log.i(TAG, "wake up ");
                 timeOutToSleep.removeCallbacks(timeOutCallbackToSleep);
                 wakeUpScreen.acquire();
