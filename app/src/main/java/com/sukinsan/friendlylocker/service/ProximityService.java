@@ -29,6 +29,15 @@ public class ProximityService extends Service implements SensorEventListener{
 
     private Cache cache;
 
+    enum Morze{dot,dash};
+    private final static long
+        delayDot = 800,
+        delayDash = 2000,
+        vibrateDot = 50,
+        vibrateDash = 200
+    ;
+    private long time = System.currentTimeMillis();
+
     private Vibrator v;
     private PowerManager pm;
     private PowerManager.WakeLock wakeUpScreen;
@@ -135,16 +144,39 @@ public class ProximityService extends Service implements SensorEventListener{
         return Service.START_STICKY;
     }
 
+    /**
+     * https://coub.com/view/19xqt
+     */
+    public Morze getMorzeSignal(){
+        long difference = System.currentTimeMillis() - time;
+        time = System.currentTimeMillis();
+        Log.i(TAG,"difference=" + difference);
+        if(difference > delayDot && difference <= delayDash ){
+            return Morze.dash;
+        }
+        return Morze.dot;
+    }
+
+    public long getVibrationByMorze(Morze morze){
+        switch (morze){
+            case dash:
+                return vibrateDash;
+            case dot:
+            default:
+                return vibrateDot;
+        }
+    }
 
     @Override
     public void onSensorChanged(final SensorEvent event) {
-        timeOutReleaseProximity.removeCallbacks(timeOutCallbackReleaseProximity);
+        Morze morzeSignal = getMorzeSignal();
+        timeOutReleaseProximity.removeCallbacks(timeOutCallbackReleaseProximity);// release
 
         if(cache.isPlaySongOnSensor()) {
             beep.start();
         }
         if(cache.isVibrateOnSensor()) {
-            v.vibrate(50);
+            v.vibrate(getVibrationByMorze(morzeSignal));
         }
         if(event.values.length > 0){
             if(event.values[0] == 0.0){
