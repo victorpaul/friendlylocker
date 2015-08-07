@@ -38,7 +38,6 @@ public class MainActivity extends AppCompatActivity{
         CacheUtils.getCache(this, new CacheUtils.Callback() {
             @Override
             public boolean read(Cache cache) {
-
                 return false;
             }
         });
@@ -53,6 +52,7 @@ public class MainActivity extends AppCompatActivity{
         startService = (Button)findViewById(R.id.btn_friendlylocker_start);
         endService = (Button)findViewById(R.id.btn_friendlylocker_stop);
 
+        startService(new Intent(MainActivity.this, ProximityService.class));
         startService.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {

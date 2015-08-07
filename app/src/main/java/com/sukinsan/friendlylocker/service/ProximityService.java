@@ -10,11 +10,8 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
-import android.media.AudioManager;
 import android.media.MediaPlayer;
-import android.media.SoundPool;
 import android.os.Build;
-import android.os.Environment;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.PowerManager;
@@ -24,8 +21,6 @@ import android.widget.Toast;
 import com.sukinsan.friendlylocker.R;
 import com.sukinsan.friendlylocker.activity.MainActivity;
 
-import java.io.File;
-
 public class ProximityService extends Service implements SensorEventListener{
     private static final String TAG = ProximityService.class.getSimpleName();
 
@@ -33,17 +28,31 @@ public class ProximityService extends Service implements SensorEventListener{
     private PowerManager.WakeLock wakeUpScreen;
     private PowerManager.WakeLock shutDownScreen;
 
-    private Handler timeOut = new Handler();
-    private Runnable timeOutCallback = new Runnable() {
+    private int timeDelay = 3000;
+    private Handler timeOutToSleep = new Handler();
+    private Runnable timeOutCallbackToSleep = new Runnable() {
             public void run() {
                 shutDownScreen.acquire();
+                lock.start();
+                Log.i(TAG, "shutdown");
+                timeOutReleaseProximity.postDelayed(timeOutCallbackReleaseProximity,10000);
             }
         };
+
+    private Handler timeOutReleaseProximity = new Handler();
+    private Runnable timeOutCallbackReleaseProximity = new Runnable() {
+        @TargetApi(Build.VERSION_CODES.LOLLIPOP)
+        public void run() {
+            shutDownScreen.release(PowerManager.RELEASE_FLAG_WAIT_FOR_NO_PROXIMITY);
+            Log.i(TAG, "proximity shutDownScreen.release");
+        }
+    };
 
     private SensorManager mSensorManager;
     private Sensor mProximity;
 
     private MediaPlayer beep;
+    private MediaPlayer lock;
 
     @TargetApi(Build.VERSION_CODES.LOLLIPOP)
     public ProximityService() {
@@ -55,12 +64,14 @@ public class ProximityService extends Service implements SensorEventListener{
         super.onCreate();
         Toast.makeText(this, getString(R.string.app_name) + " started!", Toast.LENGTH_LONG).show();
 
-        beep = MediaPlayer.create(this,R.raw.beep1_wav);
+        beep = MediaPlayer.create(this,R.raw.meow1_wav);
+        beep.setVolume(0.1f, 0.1f);
+        lock = MediaPlayer.create(this,R.raw.lock2_wav);
+        lock.setVolume(0.1f,0.1f);
 
         pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
-        wakeUpScreen = pm.newWakeLock(PowerManager.SCREEN_DIM_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP, "My Tag");
-        shutDownScreen = pm.newWakeLock(PowerManager.PROXIMITY_SCREEN_OFF_WAKE_LOCK, "My Tag");
-
+        wakeUpScreen = pm.newWakeLock(PowerManager.SCREEN_DIM_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP, "WakeUp");
+        shutDownScreen = pm.newWakeLock(PowerManager.PROXIMITY_SCREEN_OFF_WAKE_LOCK, "ShutDown");
         mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
         mProximity = mSensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY);
     }
@@ -104,25 +115,26 @@ public class ProximityService extends Service implements SensorEventListener{
 
 
     @Override
-    public void onSensorChanged(SensorEvent event) {
-        beep.start();
+    public void onSensorChanged(final SensorEvent event) {
+        timeOutReleaseProximity.removeCallbacks(timeOutCallbackReleaseProximity);
         if(event.values.length > 0){
             if(event.values[0] == 0.0){
-                Log.i(TAG, "shutdown " + event.values[0]);
-                timeOut.postDelayed(timeOutCallback, 5000);
+                if(timeDelay > 0){ // we do not want to play beep and lock at the same time
+                    beep.start();
+                }
+                timeOutToSleep.postDelayed(timeOutCallbackToSleep, timeDelay);
             }else{
-                Log.i(TAG, "wake up " + event.values[0]);
-                timeOut.removeCallbacks(timeOutCallback);
+                beep.start();
+                Log.i(TAG, "wake up ");
+                timeOutToSleep.removeCallbacks(timeOutCallbackToSleep);
+                wakeUpScreen.acquire();
+                wakeUpScreen.release();
                 if(shutDownScreen.isHeld()) {
                     shutDownScreen.release();
                 }
-
-                wakeUpScreen.acquire();
-                wakeUpScreen.release();
             }
         }
     }
-
 
     @Override
     public void onAccuracyChanged(Sensor sensor, int accuracy) {
