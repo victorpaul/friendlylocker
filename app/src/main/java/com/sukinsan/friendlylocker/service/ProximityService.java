@@ -90,11 +90,11 @@ public class ProximityService extends Service implements SensorEventListener{
 
         if(cache.isPlaySongOnSensor()) {
             beep = MediaPlayer.create(this, R.raw.beep1_wav);//R.raw.meow1_wav
-            beep.setVolume(0.1f, 0.1f);
+            beep.setVolume(0.3f, 0.3f);
         }
         if(cache.isPlaySongOnLock()) {
             lock = MediaPlayer.create(this, R.raw.lock2_wav);
-            lock.setVolume(0.1f, 0.1f);
+            lock.setVolume(1f, 1f);
         }
         if(cache.isVibrateOnSensor()) {
             v = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
