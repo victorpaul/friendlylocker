@@ -5,16 +5,13 @@ import android.content.SharedPreferences;
 import android.preference.PreferenceManager;
 import android.util.Log;
 
+import com.google.gson.Gson;
 import com.sukinsan.friendlylocker.entity.Cache;
-
-import org.codehaus.jackson.map.DeserializationConfig;
-import org.codehaus.jackson.map.ObjectMapper;
 
 /**
  * Created by victor on 06.08.15.
  */
 public class CacheUtils {
-    public static final ObjectMapper MAPPER = new ObjectMapper().configure(DeserializationConfig.Feature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     private static final String TAG = CacheUtils.class.getSimpleName();
 
     public interface Callback{
@@ -24,10 +21,12 @@ public class CacheUtils {
     public static void getCache(Context context, Callback callback){
         SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context);
 
+        Gson gson = new Gson();
+
         Cache cache = null;
         if (!sharedPreferences.getString(Cache.class.getName(),"").isEmpty()) {
             try {
-                cache = MAPPER.readValue(sharedPreferences.getString(Cache.class.getName(), ""), Cache.class);
+                cache = gson.fromJson(sharedPreferences.getString(Cache.class.getName(), ""), Cache.class);
             } catch (Exception e) {
                 Log.e(TAG, "get cache", e);
             }
@@ -42,7 +41,7 @@ public class CacheUtils {
             if(callback.read(cache)){
                 try {
                     sharedPreferences.edit().remove(Cache.class.getName()).commit();
-                    sharedPreferences.edit().putString(Cache.class.getName(), MAPPER.writeValueAsString(cache)).commit();
+                    sharedPreferences.edit().putString(Cache.class.getName(),gson.toJson(cache)).commit();
                     Log.i(TAG, "save");
                 } catch (Exception e) {
                     Log.e(TAG, "save cache", e);

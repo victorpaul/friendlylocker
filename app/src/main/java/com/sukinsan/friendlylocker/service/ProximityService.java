@@ -29,27 +29,18 @@ public class ProximityService extends Service implements SensorEventListener{
 
     private Cache cache;
 
-    enum Morze{dot,dash};
-    private final static long
-        delayDot = 800,
-        delayDash = 2000,
-        vibrateDot = 50,
-        vibrateDash = 200
-    ;
-    private long time = System.currentTimeMillis();
-
     private Vibrator v;
     private PowerManager pm;
     private PowerManager.WakeLock wakeUpScreen;
     private PowerManager.WakeLock shutDownScreen;
 
-    private int timeDelay = 3000;
-    private Handler timeOutToSleep = new Handler();
-    private Runnable timeOutCallbackToSleep = new Runnable() {
+    private int timeToSleep = 2000;
+    private Handler handlerToSleep = new Handler();
+    private Runnable runnableToSleep = new Runnable() {
             public void run() {
                 shutDownScreen.acquire();
                 if(cache.isPlaySongOnLock()) {
-                    lock.start();
+                    songLock.start();
                 }
                 Log.i(TAG, "shutdown");
                 timeOutReleaseProximity.postDelayed(timeOutCallbackReleaseProximity,10000);
@@ -68,8 +59,8 @@ public class ProximityService extends Service implements SensorEventListener{
     private SensorManager mSensorManager;
     private Sensor mProximity;
 
-    private MediaPlayer beep;
-    private MediaPlayer lock;
+    private MediaPlayer songBeep;
+    private MediaPlayer songLock;
 
     @TargetApi(Build.VERSION_CODES.LOLLIPOP)
     public ProximityService() {
@@ -80,6 +71,8 @@ public class ProximityService extends Service implements SensorEventListener{
     public void onCreate() {
         super.onCreate();
 
+        Toast.makeText(this, getString(R.string.app_name) + " starts :)", Toast.LENGTH_SHORT).show();
+
         CacheUtils.getCache(getApplicationContext(), new CacheUtils.Callback() {
             @Override
             public boolean read(Cache cache) {
@@ -89,28 +82,35 @@ public class ProximityService extends Service implements SensorEventListener{
         });
 
         if(cache.isPlaySongOnSensor()) {
-            beep = MediaPlayer.create(this, R.raw.beep1_wav);//R.raw.meow1_wav
-            beep.setVolume(0.3f, 0.3f);
+            songBeep = MediaPlayer.create(this, R.raw.beep1_wav);//R.raw.meow1_wav
+            songBeep.setVolume(0.3f, 0.3f);
         }
         if(cache.isPlaySongOnLock()) {
-            lock = MediaPlayer.create(this, R.raw.lock2_wav);
-            lock.setVolume(1f, 1f);
+            songLock = MediaPlayer.create(this, R.raw.lock2_wav);
+            songLock.setVolume(1f, 1f);
         }
         if(cache.isVibrateOnSensor()) {
             v = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
         }
 
         pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+
         wakeUpScreen = pm.newWakeLock(PowerManager.SCREEN_DIM_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP, "WakeUp");
         shutDownScreen = pm.newWakeLock(PowerManager.PROXIMITY_SCREEN_OFF_WAKE_LOCK, "ShutDown");
+
         mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
         mProximity = mSensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY);
     }
 
     @Override
     public void onDestroy() {
-        Toast.makeText(this, getString(R.string.app_name) + " stopped :(", Toast.LENGTH_LONG).show();
-        //wl.release();
+        Toast.makeText(this, getString(R.string.app_name) + " stopped :(", Toast.LENGTH_SHORT).show();
+        if(wakeUpScreen.isHeld()){
+            wakeUpScreen.release();
+        }
+        if(shutDownScreen.isHeld()) {
+            shutDownScreen.release();
+        }
         mSensorManager.unregisterListener(this);
         super.onDestroy();
     }
@@ -147,50 +147,34 @@ public class ProximityService extends Service implements SensorEventListener{
     /**
      * https://coub.com/view/19xqt
      */
-    public Morze getMorzeSignal(){
-        long difference = System.currentTimeMillis() - time;
-        time = System.currentTimeMillis();
-        Log.i(TAG,"difference=" + difference);
-        if(difference > delayDot && difference <= delayDash ){
-            return Morze.dash;
-        }
-        return Morze.dot;
-    }
-
-    public long getVibrationByMorze(Morze morze){
-        switch (morze){
-            case dash:
-                return vibrateDash;
-            case dot:
-            default:
-                return vibrateDot;
-        }
-    }
 
     @Override
     public void onSensorChanged(final SensorEvent event) {
-        Morze morzeSignal = getMorzeSignal();
+        boolean isClose = (event.values.length > 0 && event.values[0] == 0.0);
+
         timeOutReleaseProximity.removeCallbacks(timeOutCallbackReleaseProximity);// release
 
         if(cache.isPlaySongOnSensor()) {
-            beep.start();
+            songBeep.start();
         }
         if(cache.isVibrateOnSensor()) {
-            v.vibrate(getVibrationByMorze(morzeSignal));
+            v.vibrate(100);
         }
-        if(event.values.length > 0){
-            if(event.values[0] == 0.0){
-                timeOutToSleep.postDelayed(timeOutCallbackToSleep, timeDelay);
-            }else{
-                Log.i(TAG, "wake up ");
-                timeOutToSleep.removeCallbacks(timeOutCallbackToSleep);
-                wakeUpScreen.acquire();
-                wakeUpScreen.release();
-                if(shutDownScreen.isHeld()) {
-                    shutDownScreen.release();
-                }
+
+        if(isClose){
+            handlerToSleep.postDelayed(runnableToSleep, timeToSleep);
+        }else{
+            Log.i(TAG, "wake up ");
+            handlerToSleep.removeCallbacks(runnableToSleep);
+
+
+            wakeUpScreen.acquire();
+            wakeUpScreen.release();
+            if(shutDownScreen.isHeld()) {
+                shutDownScreen.release();
             }
         }
+
     }
 
     @Override

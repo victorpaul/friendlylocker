@@ -57,7 +57,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         startService = (Button)findViewById(R.id.btn_friendlylocker_start);
         endService = (Button)findViewById(R.id.btn_friendlylocker_stop);
 
-        startService(new Intent(MainActivity.this, ProximityService.class));
+        //startService(new Intent(MainActivity.this, ProximityService.class));
         startService.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
